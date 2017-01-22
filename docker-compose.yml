@@ -1,0 +1,12 @@
+version: '2'
+services:
+ clojure:
+    build:
+      context: .
+      dockerfile: clj.dockerfile
+    image: timesheet-parser
+    container_name: timesheet-parser-container
+    ports:
+      - "7888:7888"
+    volumes:
+      - .:/timesheet-parser
