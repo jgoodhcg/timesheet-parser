@@ -18,19 +18,16 @@
 ;;               :end
 ;;               })
 
-(defn start-unix
+(defn unix-time
   "
   turns two strings (in a vec) into a unix timestamp
   example strings '1/30/17' '9:45 AM'
-  date {m/d/yy} at index 2
-  start time {h:mm AM} at index 3
+  date 'm/d/yy'
+  start time 'h:mm AM'
   "
 
-  [row]
-  (let [date (nth row 2)
-        time_meridian (nth row 3)
-
-        d_split_slash (split date #"/")
+  [date time_meridian]
+  (let [d_split_slash (split date #"/")
         tm_split_space (split time_meridian #"\s")
         tm_split_colon (split (first tm_split_space) #":")
         meridian (last tm_split_space)
@@ -64,5 +61,14 @@
   (->> (rest csv-vec)
        (map
         (fn [row]
-          (let [start (start-unix row)]
-            start)))))
+          (let [start   (unix-time (nth row 2) (nth row 3))
+                end     (unix-time (nth row 2) (nth row 4))
+                project     (nth row 10)
+                description (nth row 12)
+                tags        (nth row 18)
+                ]
+            {:start start
+             :end end
+             :project project
+             :description description
+             :tags tags})))))
