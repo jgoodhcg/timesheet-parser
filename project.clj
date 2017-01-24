@@ -6,6 +6,7 @@
   :dependencies [[org.clojure/clojure "1.8.0"]
                  [clojure-csv/clojure-csv "2.0.1"]
                  [clj-time "0.13.0"]
+                 [org.clojure/data.json "0.2.6"]
                  ]
   :main ^:skip-aot timesheet-parser.core
   :target-path "target/%s"
