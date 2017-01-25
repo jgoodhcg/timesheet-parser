@@ -41,15 +41,21 @@
                    (Integer/parseInt (nth d_split_slash 2)))
         month   (Integer/parseInt (nth d_split_slash 0))
         day     (Integer/parseInt (nth d_split_slash 1))
-        hours   (if (and
-                     (not (= hours_meridian 12))
-                     (= meridian "PM"))
+        hours   (cond
+                  (and (= meridian "PM") (not= hours_meridian 12))
                   (+ 12 hours_meridian)
-                  hours_meridian)
+                  
+                  (and (= meridian "AM") (= hours_meridian 12))
+                  0
+                  
+                  :else hours_meridian)
+    
         minutes (Integer/parseInt (last tm_split_colon))]
 
   (coerce/to-long
-    (time/date-time year month day hours minutes))))
+   (time/date-time year month day hours minutes)
+   )
+  ))
 
 (defn map-map
   "
@@ -95,10 +101,26 @@
             ;;  :description description
             ;;  :tags tags}
 
-            {:start-unix start
-             :end-unix end
-             :start (nth row (last (:start key-index-map)))
-             :end (nth row (last (:end key-index-map)))}
+            (let [duration (nth row 5)
+                  d_split_colon (split duration #":")
+                  hours (Integer/parseInt (nth d_split_colon 0))
+                  minutes (Integer/parseInt (nth d_split_colon 1))
+                  seconds (Integer/parseInt (nth d_split_colon 2))
+                  total_ms (+
+                            (->> hours (* 60)(* 60)(* 1000))
+                            (->> minutes (* 60)(* 1000))
+                            (->> seconds (* 1000)))
+                  ]
+              (clojure.pprint/pprint
+               {:start-unix start
+                :end-unix end
+                :is_valid (=
+                           end 
+                           (+ start total_ms))
+                })
+
+              )
+
             )))
        ;; json/write-str
        ;; (spit "/timesheet-parser/resources/timesheet.json")
