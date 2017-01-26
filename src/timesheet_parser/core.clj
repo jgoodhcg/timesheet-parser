@@ -9,9 +9,55 @@
 (defn -main
   "given
   - an absolute path to a timesheet csv file
-  return a JSON array of formatted objects"
-  [& args]
-  (println "Hello, World!"))
+  return a JSON array of formatted objects saved as a file with the same name and '.json' appended"
+  [path]
+  (let [csv-str
+        (slurp path)
+        csv-vec (parse-csv csv-str)
+        keys (first csv-vec)
+        key-index-map (map-map-values
+                       (fn [v]
+                         (vec
+                          (map #(.indexOf keys %) v))) key-map)]
+
+    (->> (rest csv-vec)
+         (map (fn [row]
+                (let [start         (unix-time
+                                     (nth row (first (:start key-index-map)))
+                                     (nth row (last (:start key-index-map))))
+                      end-unchecked (unix-time
+                                     (nth row (first (:end key-index-map)))
+                                     (nth row (last (:end key-index-map))))
+                      project       (nth row (first (:project key-index-map)))
+                      description   (nth row (first (:description key-index-map)))
+                      tags          (nth row (first (:tags key-index-map)))
+
+                      ;; stuff to figure out if end crosses 12 am
+                      duration      (nth row 5)
+                      d_split_colon (split duration #":")
+                      hours         (Integer/parseInt (nth d_split_colon 0))
+                      minutes       (Integer/parseInt (nth d_split_colon 1))
+                      seconds       (Integer/parseInt (nth d_split_colon 2))
+                      total_ms      (+
+                                     (->> hours (* 60)(* 60)(* 1000))
+                                     (->> minutes (* 60)(* 1000))
+                                     (->> seconds (* 1000)))
+
+                      ;; add 24 hours to an end that crosses 12 am
+                      end (if (= end-unchecked (+ start total_ms))
+                            end-unchecked
+                            (+ end-unchecked
+                               (->> 24 (* 60)(* 60)(* 1000))))]
+
+                  {:start start
+                   :end end
+                   :project project
+                   :description description
+                   :tags tags})))
+
+         json/write-str
+         (spit (str path ".json"))))
+  (println "finished!"))
 
 (def key-map
   {:project ["Project"]
@@ -44,18 +90,16 @@
         hours   (cond
                   (and (= meridian "PM") (not= hours_meridian 12))
                   (+ 12 hours_meridian)
-                  
+
                   (and (= meridian "AM") (= hours_meridian 12))
                   0
-                  
+
                   :else hours_meridian)
-    
+
         minutes (Integer/parseInt (last tm_split_colon))]
 
   (coerce/to-long
-   (time/date-time year month day hours minutes)
-   )
-  ))
+   (time/date-time year month day hours minutes))))
 
 (defn map-map
   "
@@ -74,55 +118,4 @@
   [f m]
   (map-map (fn [key value] {key (f value)}) m) )
 
-(let [csv-str
-      (slurp "/timesheet-parser/resources/timesheet.csv")
-      csv-vec (parse-csv csv-str)
-      keys (first csv-vec)
-      key-index-map (map-map-values
-                     (fn [v]
-                       (vec
-                        (map #(.indexOf keys %) v))) key-map)]
 
-  (->> (rest csv-vec)
-       (map
-        (fn [row]
-          (let [start       (unix-time
-                             (nth row (first (:start key-index-map)))
-                             (nth row (last (:start key-index-map))))
-                end         (unix-time
-                             (nth row (first (:end key-index-map)))
-                             (nth row (last (:end key-index-map))))
-                project     (nth row (first (:project key-index-map)))
-                description (nth row (first (:description key-index-map)))
-                tags        (nth row (first (:tags key-index-map)))]
-            ;; {:start start
-            ;;  :end end
-            ;;  :project project
-            ;;  :description description
-            ;;  :tags tags}
-
-            (let [duration (nth row 5)
-                  d_split_colon (split duration #":")
-                  hours (Integer/parseInt (nth d_split_colon 0))
-                  minutes (Integer/parseInt (nth d_split_colon 1))
-                  seconds (Integer/parseInt (nth d_split_colon 2))
-                  total_ms (+
-                            (->> hours (* 60)(* 60)(* 1000))
-                            (->> minutes (* 60)(* 1000))
-                            (->> seconds (* 1000)))
-                  ]
-              (clojure.pprint/pprint
-               {:start-unix start
-                :end-unix end
-                :is_valid (=
-                           end 
-                           (+ start total_ms))
-                })
-
-              )
-
-            )))
-       ;; json/write-str
-       ;; (spit "/timesheet-parser/resources/timesheet.json")
-
-       ))
